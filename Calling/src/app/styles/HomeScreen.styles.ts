@@ -12,8 +12,16 @@ export const imgStyle = mergeStyles({
   }
 });
 export const containerTokens: IStackTokens = {
-  childrenGap: '4rem'
+  childrenGap: '6rem'
 };
+export const separatorStyle = mergeStyles({
+  width: '1px',
+  height: '24rem',
+  backgroundColor: '#edebe9', // Fluent UI neutralLight
+  '@media (max-width: 67.1875rem)': {
+    display: 'none'
+  }
+});
 export const infoContainerStyle = mergeStyles({
   padding: '0.5rem',
   width: '20rem'

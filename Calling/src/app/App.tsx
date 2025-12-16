@@ -21,6 +21,7 @@ import {
 } from './utils/AppUtils';
 import { createRoom, getRoomIdFromUrl, addUserToRoom } from './utils/AppUtils';
 import { useIsMobile } from './utils/useIsMobile';
+import { addMeetingToHistory } from './utils/localStorage';
 import { CallError } from './views/CallError';
 import { CallScreen } from './views/CallScreen';
 import { HomeScreen } from './views/HomeScreen';
@@ -45,6 +46,7 @@ const App = (): JSX.Element => {
   const [displayName, setDisplayName] = useState<string>('');
   const [isTeamsCall, setIsTeamsCall] = useState<boolean>(false);
   const [alternateCallerId, setAlternateCallerId] = useState<string | undefined>();
+  const [isJoining, setIsJoining] = useState<boolean>(false);
 
   // Get Azure Communications Service token from the server
   useEffect(() => {
@@ -86,13 +88,31 @@ const App = (): JSX.Element => {
           startCallHandler={async (callDetails) => {
             setDisplayName(callDetails.displayName);
             setAlternateCallerId(callDetails.alternateCallerId);
-            let callLocator: CallAdapterLocator | undefined =
-              callDetails.callLocator ||
-              getRoomIdFromUrl() ||
-              getTeamsLinkFromUrl() ||
-              getMeetingIdFromUrl() ||
-              getGroupIdFromUrl() ||
-              createGroupId();
+
+            console.log('App: Starting call with option:', callDetails.option);
+
+            let callLocator: CallAdapterLocator | undefined = callDetails.callLocator;
+
+            if (!callLocator) {
+              if (callDetails.option === 'ACSCall' || callDetails.option === '1:N' || callDetails.option === 'PSTN') {
+                callLocator = getGroupIdFromUrl() || createGroupId();
+              } else if (callDetails.option === 'TeamsMeeting' || callDetails.option === 'TeamsIdentity') {
+                callLocator = getTeamsLinkFromUrl() || getMeetingIdFromUrl();
+              } else if (callDetails.option === 'Rooms' || callDetails.option === 'StartRooms') {
+                callLocator = getRoomIdFromUrl();
+              } else {
+                // Fallback for any other cases or legacy behavior
+                callLocator =
+                  getRoomIdFromUrl() ||
+                  getTeamsLinkFromUrl() ||
+                  getMeetingIdFromUrl() ||
+                  getGroupIdFromUrl() ||
+                  createGroupId();
+              }
+            }
+
+            console.log('App: Resolved callLocator:', callLocator);
+
             if (callDetails.option === 'Rooms') {
               callLocator = getRoomIdFromUrl() || callDetails.callLocator;
             }
@@ -136,16 +156,43 @@ const App = (): JSX.Element => {
               }
             }
             setCallLocator(callLocator);
+
+            // Determine if we are joining a call or starting a new one
+            const joining =
+              !!getGroupIdFromUrl() ||
+              !!getRoomIdFromUrl() ||
+              !!getTeamsLinkFromUrl() ||
+              !!getMeetingIdFromUrl() ||
+              callDetails.option === 'TeamsMeeting' ||
+              callDetails.option === 'TeamsIdentity' ||
+              (callDetails.option === 'Rooms' && !!callDetails.callLocator);
+
+            setIsJoining(joining);
+
             // Update window URL to have a joinable link
             if (callLocator && !joiningExistingCall) {
+              const joinParams = getJoinParams(callLocator);
+              const origin = window.location.origin;
+              const pathname = window.location.pathname;
+              // Avoid double slashes if pathname is '/' and joinParams starts with '?' (browser handles it, but let's be clean)
+              const cleanPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+              const fullUrl = origin + cleanPath + '/' + joinParams + getIsCTEParam(!!callDetails.teamsToken);
+
               window.history.pushState(
                 {},
                 document.title,
-                window.location.origin +
-                  window.location.pathname +
-                  getJoinParams(callLocator) +
-                  getIsCTEParam(!!callDetails.teamsToken)
+                fullUrl
               );
+
+              addMeetingToHistory({
+                id: Date.now().toString(),
+                timestamp: Date.now(),
+                displayName: callDetails.displayName,
+                callDescription: callDetails.option === 'TeamsMeeting' ? 'Teams Meeting' : 'Group Call',
+                url: fullUrl,
+                status: 'live',
+                isCreated: !joining
+              });
             }
             setIsTeamsCall(!!callDetails.teamsToken);
             callDetails.teamsToken && setToken(callDetails.teamsToken);
@@ -187,6 +234,7 @@ const App = (): JSX.Element => {
           targetCallees={targetCallees}
           alternateCallerId={alternateCallerId}
           isTeamsIdentityCall={isTeamsCall}
+          isJoining={isJoining}
         />
       );
     }

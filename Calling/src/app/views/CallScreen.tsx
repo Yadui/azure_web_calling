@@ -22,8 +22,9 @@ import {
 import type { Profile, StartCallIdentifier, TeamsAdapterOptions } from '@azure/communication-react';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { createAutoRefreshingCredential } from '../utils/credential';
-import { WEB_APP_TITLE } from '../utils/AppUtils';
+import { WEB_APP_TITLE, navigateToHomePage } from '../utils/AppUtils';
 import { CallCompositeContainer } from './CallCompositeContainer';
+import { endMeeting } from '../utils/localStorage';
 
 export interface CallScreenProps {
   token: string;
@@ -33,6 +34,7 @@ export interface CallScreenProps {
   displayName: string;
   alternateCallerId?: string;
   isTeamsIdentityCall?: boolean;
+  isJoining?: boolean;
 }
 
 export const CallScreen = (props: CallScreenProps): JSX.Element => {
@@ -52,6 +54,13 @@ export const CallScreen = (props: CallScreenProps): JSX.Element => {
       if (state?.call?.id && callIdRef.current !== state?.call?.id) {
         callIdRef.current = state?.call?.id;
         console.log(`Call Id: ${callIdRef.current}`);
+      }
+
+      if (state.page === 'leftCall' || state.page === 'removedFromCall') {
+        if (props.callLocator) {
+          endMeeting(props.callLocator);
+        }
+        navigateToHomePage();
       }
     });
     adapter.on('transferAccepted', (e) => {

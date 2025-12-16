@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { GroupCallLocator, TeamsMeetingLinkLocator } from '@azure/communication-calling';
-import { CallAdapterLocator, CallComposite, CallCompositeOptions, CommonCallAdapter } from '@azure/communication-react';
+import { CallAdapterLocator, CallComposite, CallCompositeOptions, CommonCallAdapter, COMPOSITE_LOCALE_EN_US } from '@azure/communication-react';
 import { Spinner, Stack } from '@fluentui/react';
 import React, { useEffect, useMemo } from 'react';
 import { useSwitchableFluentTheme } from '../theming/SwitchableFluentThemeProvider';
@@ -13,10 +13,29 @@ import { CallScreenProps } from './CallScreen';
 export type CallCompositeContainerProps = CallScreenProps & { adapter?: CommonCallAdapter };
 
 export const CallCompositeContainer = (props: CallCompositeContainerProps): JSX.Element => {
-  const { adapter } = props;
+  const { adapter, isJoining } = props;
   const { currentTheme, currentRtl } = useSwitchableFluentTheme();
   const isMobileSession = useIsMobile();
   const shouldHideScreenShare = isMobileSession || isIOS();
+
+  const locale = useMemo(() => {
+    if (isJoining) {
+      return {
+        ...COMPOSITE_LOCALE_EN_US,
+        component: {
+          ...COMPOSITE_LOCALE_EN_US.component,
+          strings: {
+            ...COMPOSITE_LOCALE_EN_US.component.strings,
+            call: {
+              ...(COMPOSITE_LOCALE_EN_US.component.strings as any).call,
+              startCallButtonLabel: 'Join call',
+            }
+          }
+        }
+      };
+    }
+    return undefined;
+  }, [isJoining]);
 
   useEffect(() => {
     /**
@@ -79,6 +98,7 @@ export const CallCompositeContainer = (props: CallCompositeContainerProps): JSX.
       callInvitationUrl={callInvitationUrl}
       formFactor={isMobileSession ? 'mobile' : 'desktop'}
       options={options}
+      locale={locale}
     />
   );
 };

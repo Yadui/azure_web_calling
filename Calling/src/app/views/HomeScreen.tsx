@@ -5,10 +5,8 @@ import React, { useState } from 'react';
 import { Stack, PrimaryButton, Image, ChoiceGroup, IChoiceGroupOption, Text, TextField } from '@fluentui/react';
 import { Label } from '@fluentui/react';
 import { registerIcons, Callout, mergeStyles, Link } from '@fluentui/react';
-import heroSVG from '../../assets/hero.svg';
 import foetronLogo from '../../assets/foetron_logo.svg';
 import {
-  imgStyle,
   infoContainerStyle,
   callContainerStackTokens,
   callOptionsGroupStyles,
@@ -71,8 +69,6 @@ export interface HomeScreenProps {
 type ICallChoiceGroupOption = IChoiceGroupOption & { key: CallOption };
 
 export const HomeScreen = (props: HomeScreenProps): JSX.Element => {
-  const imageProps = { src: heroSVG.toString() };
-
   const callOptions: ICallChoiceGroupOption[] = [
     { key: 'ACSCall', text: 'Start a call' },
     { key: 'TeamsMeeting', text: 'Join a call' }

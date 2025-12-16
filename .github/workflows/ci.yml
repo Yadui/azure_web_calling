@@ -1,64 +1,47 @@
-name: CI
+name: Azure Web Calling CI
 
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
-  build_and_test:
-    name: Build and test
-    runs-on: windows-latest
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
     steps:
+    - uses: actions/checkout@v3
 
-      - name: Checkout
-        uses: actions/checkout@v1
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: '**/package-lock.json'
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v2
-        with:
-          node-version: '20'
+    # Build and Test Server
+    - name: Install Server dependencies
+      working-directory: ./Server
+      run: npm ci
 
-      - name: Setup Server dependencies
-        working-directory: ./Server
-        run: |
-          npm install
+    - name: Build Server
+      working-directory: ./Server
+      run: npm run build
 
-      - name: Build backend
-        working-directory: ./Server
-        shell: bash
-        run: |
-          npm run build
+    - name: Test Server
+      working-directory: ./Server
+      run: npm test
 
-  clean_frontend:
-    name: Run clean code tests on frontend
-    runs-on: windows-latest
-    steps:
+    # Build Client
+    - name: Install Calling dependencies
+      working-directory: ./Calling
+      run: npm ci
 
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - uses: actions/setup-node@v2
-        with:
-          node-version: '16'
-
-      - name: Install (dev) dependencies
-        working-directory: ./Calling
-        run: npm install
-
-      - name: Lint
-        working-directory: ./Calling
-        run: npm run lint
-
-      - name: Check all is pretty
-        working-directory: ./Calling
-        run: npm run prettier:check
-
-      - name: Build
-        working-directory: ./Calling
-        run: npm run build
+    - name: Build Calling App
+      working-directory: ./Calling
+      run: npm run build

@@ -1,3 +1,5 @@
+name: Build and Deploy to Azure WebApp
+
 on:
   push:
     branches: [ "main" ]
@@ -10,6 +12,7 @@ env:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   build:
@@ -22,18 +25,26 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
+        cache-dependency-path: '**/package-lock.json'
 
-    - name: npm install, build, and test
+    - name: Build Server
+      working-directory: ./Server
       run: |
-        npm install
-        npm run build --if-present
-        npm run test --if-present
+        npm ci
+        npm run build
+
+    - name: Build and Package Client
+      working-directory: ./Calling
+      run: |
+        npm ci
+        npm run build
+        npm run package
 
     - name: Upload artifact for deployment job
       uses: actions/upload-artifact@v4
       with:
         name: node-app
-        path: .
+        path: ./Calling/dist
 
   deploy:
     runs-on: ubuntu-latest
@@ -44,11 +55,17 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: node-app
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
+        tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
+        subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
     - name: 'Deploy to Azure WebApp'
       id: deploy-to-webapp
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        package: .
